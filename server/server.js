@@ -1,8 +1,18 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config();
+
+const dns = require('dns');
+// Set DNS to Google/Cloudflare to prevent querySrv ECONNREFUSED issues on Windows and certain ISPs
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore in environments where custom DNS servers cannot be set
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
 
 const residentRoutes = require('./routes/residentRoutes');
@@ -21,13 +31,46 @@ app.use(express.urlencoded({ extended: true }));
 
 // Note: File uploads are now handled by Cloudinary (see config/cloudinary.js)
 
-// Middleware to check database connection status
-// API Routes
-app.use('/api/residents', residentRoutes);
-app.use('/api/parcels', parcelRoutes);
+// Database connection helper with connection promise caching for Serverless environments (Vercel)
+let connectionPromise = null;
+async function connectDB() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+  if (!connectionPromise) {
+    console.log('جاري الاتصال بقاعدة البيانات...');
+    connectionPromise = mongoose.connect(MONGODB_URI)
+      .then(conn => {
+        console.log('تم الاتصال بقاعدة بيانات MongoDB بنجاح.');
+        return conn;
+      })
+      .catch(err => {
+        connectionPromise = null;
+        console.error('⚠️ تحذير: فشل الاتصال بقاعدة البيانات:', err.message);
+        throw err;
+      });
+  }
+  return connectionPromise;
+}
+
+// Ensure database is connected before handling any request
+app.use(async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('Database connection failed for request:', err.message);
+    }
+  }
+  next();
+});
+
+// API Routes (supports both /api/path and /path for Vercel rewrites)
+app.use(['/api/residents', '/residents'], residentRoutes);
+app.use(['/api/parcels', '/parcels'], parcelRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({ 
     status: mongoose.connection.readyState === 1 ? 'OK' : 'NO_DATABASE', 
     message: 'سيرفر ميفيدا يعمل بنجاح',
@@ -35,28 +78,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve frontend in production (optional, but good practice)
-if (process.env.NODE_ENV === 'production') {
+// Serve frontend in local production build (when not on Vercel)
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   app.use(express.static(path.join(__dirname, '../client/dist')));
   app.get('*', (req, res) => {
     res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
   });
 }
-
-// Connect to Database & Start Server
-console.log('جاري الاتصال بقاعدة البيانات...');
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('تم الاتصال بقاعدة بيانات MongoDB بنجاح.');
-  })
-  .catch(err => {
-    console.error('⚠️ تحذير: فشل الاتصال بقاعدة البيانات:', err.message);
-    console.log('سيستمر السيرفر في العمل ولكن لن تتمكن من حفظ أو جلب البيانات حتى يتم الاتصال بقاعدة البيانات.');
-  });
-
-app.listen(PORT, () => {
-  console.log(`السيرفر يعمل الآن على المنفذ: http://localhost:${PORT}`);
-});
 
 // Global error handling middleware for JSON error responses
 app.use((err, req, res, next) => {
@@ -66,6 +94,16 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? err.message : err.stack
   });
 });
+
+// Connect immediately on startup
+connectDB();
+
+// Start HTTP listener only when running as a standalone server (not on Vercel Serverless)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`السيرفر يعمل الآن على المنفذ: http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;
 
