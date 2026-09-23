@@ -18,6 +18,7 @@ import Swal from 'sweetalert2';
 import XLSX from 'xlsx-js-style';
 
 function App() {
+  const API_BASE_URL = import.meta.env.VITE_API_URL || '';
   const [activeTab, setActiveTab] = useState('residents');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -49,7 +50,7 @@ function App() {
   const fetchResidents = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/residents');
+      const res = await fetch(`${API_BASE_URL}/api/residents`);
       if (res.ok) {
         const data = await res.json();
         setResidents(data);
@@ -67,7 +68,7 @@ function App() {
   // Load parcels from API
   const fetchParcels = async () => {
     try {
-      const res = await fetch('/api/parcels');
+      const res = await fetch(`${API_BASE_URL}/api/parcels`);
       if (res.ok) {
         const data = await res.json();
         setParcels(data);
@@ -86,7 +87,7 @@ function App() {
     if (!newParcelName.trim()) return;
     setIsSaving(true);
     try {
-      const res = await fetch('/api/parcels', {
+      const res = await fetch(`${API_BASE_URL}/api/parcels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newParcelName.trim() })
@@ -124,7 +125,7 @@ function App() {
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`/api/parcels/${parcel._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/parcels/${parcel._id}`, { method: 'DELETE' });
       if (res.ok) {
         showToast('تم حذف البارسيل بنجاح');
         fetchParcels();
@@ -254,7 +255,7 @@ function App() {
   const handleSaveResident = async (formData) => {
     setIsSaving(true);
     const isEdit = editingResident !== null;
-    const url = isEdit ? `/api/residents/${editingResident._id}` : '/api/residents';
+    const url = isEdit ? `${API_BASE_URL}/api/residents/${editingResident._id}` : `${API_BASE_URL}/api/residents`;
     const method = isEdit ? 'PUT' : 'POST';
 
     try {
@@ -306,7 +307,7 @@ function App() {
     }
 
     try {
-      const res = await fetch(`/api/residents/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/residents/${id}`, {
         method: 'DELETE',
       });
 

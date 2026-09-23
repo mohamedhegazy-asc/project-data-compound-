@@ -21,7 +21,8 @@ function ResidentForm({ onClose, onSave, isSaving, residentToEdit, parcelsList: 
     // Fallback: fetch independently (e.g. if prop wasn't passed)
     const getParcels = async () => {
       try {
-        const res = await fetch('/api/parcels');
+        const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${API_BASE_URL}/api/parcels`);
         if (res.ok) {
           const data = await res.json();
           setParcelsList(data);
