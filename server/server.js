@@ -2,14 +2,6 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config();
 
-const dns = require('dns');
-// Set DNS to Google/Cloudflare to prevent querySrv ECONNREFUSED issues on Windows and certain ISPs
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {
-  // Ignore in environments where custom DNS servers cannot be set
-}
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -22,8 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mivida';
 
-// Enable CORS
-app.use(cors());
+// Enable CORS - allow all origins for Vercel deployment
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Parse JSON and form data
 app.use(express.json());
@@ -39,7 +35,10 @@ async function connectDB() {
   }
   if (!connectionPromise) {
     console.log('جاري الاتصال بقاعدة البيانات...');
-    connectionPromise = mongoose.connect(MONGODB_URI)
+    connectionPromise = mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+    })
       .then(conn => {
         console.log('تم الاتصال بقاعدة بيانات MongoDB بنجاح.');
         return conn;
