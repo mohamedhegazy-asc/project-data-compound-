@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ResidentForm from './components/ResidentForm';
+import LoginModal from './components/LoginModal';
+import UserManagement from './components/UserManagement';
 import { 
   Plus, 
   Users, 
@@ -12,13 +14,26 @@ import {
   Search,
   Pencil,
   MapPin,
-  Heart
+  Heart,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import XLSX from 'xlsx-js-style';
 
 function App() {
   const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+  // Auth State
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mivida_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [activeTab, setActiveTab] = useState('residents');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -33,16 +48,50 @@ function App() {
   const [newParcelName, setNewParcelName] = useState('');
   const [selectedParcel, setSelectedParcel] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewCarPhoto, setViewCarPhoto] = useState(null); // URL of car photo to view fullscreen
+  const [viewCarPhoto, setViewCarPhoto] = useState(null);
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem('mivida_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('mivida_user');
+    setCurrentUser(null);
+    showToast('تم تسجيل الخروج بنجاح');
+  };
+
+  // Check if a parcel is allowed for the logged in user
+  const isParcelAllowed = (parcelName) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'superadmin' || currentUser.allowedParcels?.includes('*')) return true;
+    return currentUser.allowedParcels?.includes(parcelName);
+  };
+
+  // Check if current user can delete records
+  const canUserDelete = () => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'superadmin') return true;
+    return Boolean(currentUser.canDelete);
+  };
+
+  // Display parcels & residents filtered by user's assigned scope
+  const displayParcels = parcels.filter(p => isParcelAllowed(p.name));
+  const displayResidents = residents.filter(r => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'superadmin' || currentUser.allowedParcels?.includes('*')) return true;
+    return currentUser.allowedParcels?.includes(r.parcel);
+  });
 
   // Filter residents based on search query
-  const filteredResidents = residents.filter((resident) => {
+  const filteredResidents = displayResidents.filter((resident) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
     return (
       resident.name.toLowerCase().includes(query) ||
       resident.apartmentNumber.toLowerCase().includes(query) ||
-      (resident.carNumber && resident.carNumber.toLowerCase().includes(query))
+      (resident.carNumber && resident.carNumber.toLowerCase().includes(query)) ||
+      (resident.parcel && resident.parcel.toLowerCase().includes(query))
     );
   });
 
@@ -109,7 +158,12 @@ function App() {
   };
 
   const handleDeleteParcel = async (parcel, e) => {
-    e.stopPropagation(); // prevent card click
+    e.stopPropagation();
+    if (currentUser?.role !== 'superadmin') {
+      showToast('حذف البارسيل متاح للسوبر أدمن فقط', 'error');
+      return;
+    }
+
     const count = residents.filter(r => r.parcel === parcel.name).length;
     const result = await Swal.fire({
       title: `حذف بارسيل: ${parcel.name}`,
@@ -129,7 +183,7 @@ function App() {
       if (res.ok) {
         showToast('تم حذف البارسيل بنجاح');
         fetchParcels();
-        fetchResidents(); // refresh to clear old parcel refs
+        fetchResidents();
       } else {
         const errData = await res.json();
         showToast(errData.message || 'فشل الحذف', 'error');
@@ -173,27 +227,16 @@ function App() {
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
 
-    // Apply premium styles to cells
     for (const cellRef in worksheet) {
-      if (cellRef[0] === '!') continue; // Skip metadata
+      if (cellRef[0] === '!') continue;
       const cell = worksheet[cellRef];
       const isHeader = cellRef.replace(/[A-Z]/g, '') === '1';
 
       if (isHeader) {
         cell.s = {
-          fill: {
-            fgColor: { rgb: "1e3a8a" } // Dark blue header (#1E3A8A)
-          },
-          font: {
-            name: "Arial",
-            sz: 12,
-            bold: true,
-            color: { rgb: "FFFFFF" } // White text
-          },
-          alignment: {
-            horizontal: "center",
-            vertical: "center"
-          },
+          fill: { fgColor: { rgb: "1e3a8a" } },
+          font: { name: "Arial", sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+          alignment: { horizontal: "center", vertical: "center" },
           border: {
             top: { style: "thin", color: { rgb: "cbd5e1" } },
             bottom: { style: "medium", color: { rgb: "1e3a8a" } },
@@ -203,14 +246,8 @@ function App() {
         };
       } else {
         cell.s = {
-          font: {
-            name: "Arial",
-            sz: 10
-          },
-          alignment: {
-            horizontal: "center",
-            vertical: "center"
-          },
+          font: { name: "Arial", sz: 10 },
+          alignment: { horizontal: "center", vertical: "center" },
           border: {
             top: { style: "thin", color: { rgb: "f1f5f9" } },
             bottom: { style: "thin", color: { rgb: "f1f5f9" } },
@@ -221,7 +258,6 @@ function App() {
       }
     }
 
-    // Auto-fit column widths based on maximum text length
     const colWidths = [];
     const keys = Object.keys(dataToExport[0] || {});
     keys.forEach((key) => {
@@ -230,24 +266,16 @@ function App() {
         const val = row[key];
         if (val !== undefined && val !== null) {
           const len = val.toString().length;
-          if (len > maxLen) {
-            maxLen = len;
-          }
+          if (len > maxLen) maxLen = len;
         }
       });
-      // Pad Arabic text width (since characters are wider than standard characters)
       colWidths.push({ wch: Math.max(maxLen * 1.8 + 6, 12) });
     });
     worksheet['!cols'] = colWidths;
-
-    // Set row height for headers
-    worksheet['!rows'] = [
-      { hpt: 28 } // Header row height
-    ];
+    worksheet['!rows'] = [{ hpt: 28 }];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, parcel.name.slice(0, 31)); // sheet names must be <= 31 chars
-
+    XLSX.utils.book_append_sheet(workbook, worksheet, parcel.name.slice(0, 31));
     XLSX.writeFile(workbook, `سكان_${parcel.name.replace(/\s+/g, '_')}.xlsx`);
   };
 
@@ -268,15 +296,13 @@ function App() {
         showToast(isEdit ? 'تم تحديث بيانات الساكن بنجاح!' : 'تم حفظ بيانات الساكن بنجاح!');
         setIsModalOpen(false);
         setEditingResident(null);
-        fetchResidents(); // Refresh list
+        fetchResidents();
       } else {
         let errMsg = 'حدث خطأ أثناء الحفظ';
         try {
           const errorData = await res.json();
           errMsg = errorData.message || errMsg;
         } catch (jsonErr) {
-          const rawText = await res.text().catch(() => '');
-          console.error('Non-JSON server response:', rawText);
           errMsg = `خطأ من السيرفر (${res.status})`;
         }
         showToast(errMsg, 'error');
@@ -291,6 +317,11 @@ function App() {
 
   // Delete a resident
   const handleDeleteResident = async (id) => {
+    if (!canUserDelete()) {
+      showToast('ليس لديك صلاحية حذف السكان (متاحة للسوبر أدمن أو المصرح لهم بالمسح فقط)', 'error');
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'هل أنت متأكد؟',
       text: "لن تتمكن من التراجع عن الحذف!",
@@ -302,9 +333,7 @@ function App() {
       cancelButtonText: 'إلغاء'
     });
 
-    if (!result.isConfirmed) {
-      return;
-    }
+    if (!result.isConfirmed) return;
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/residents/${id}`, {
@@ -324,18 +353,29 @@ function App() {
   };
 
   // Calculate statistics
-  const totalResidents = residents.length;
-  const totalCars = residents.filter(r => r.carNumber && r.carNumber.trim() !== '').length;
-  const uniqueApartments = new Set(residents.map(r => r.apartmentNumber)).size;
+  const totalResidents = displayResidents.length;
+  const totalCars = displayResidents.filter(r => r.carNumber && r.carNumber.trim() !== '').length;
+  const uniqueApartments = new Set(displayResidents.map(r => r.apartmentNumber)).size;
 
   return (
     <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Sidebar (Right-aligned) */}
+      {/* Login Modal Overlay */}
+      {!currentUser && (
+        <LoginModal 
+          onLogin={handleLogin} 
+          API_BASE_URL={API_BASE_URL} 
+          showToast={showToast} 
+        />
+      )}
+
+      {/* Sidebar */}
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
+        setIsOpen={setIsSidebarOpen}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Mobile Header Toggle */}
@@ -348,14 +388,14 @@ function App() {
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
         <span className="sidebar-logo-text" style={{ fontSize: '1.1rem' }}>ميفيدا Hegazy</span>
-        <div style={{ width: 24 }} /> {/* Spacer */}
+        <div style={{ width: 24 }} />
       </div>
 
       {/* Main Content Area */}
       <main className="main-content">
         
-        {/* Top Desktop Menu Button */}
-        <div className="desktop-toggle-btn" style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '0.5rem' }}>
+        {/* Top Desktop Toggle & Profile Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <button 
             className="btn btn-secondary" 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -372,6 +412,33 @@ function App() {
           >
             <Menu size={20} />
           </button>
+
+          {currentUser && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              backgroundColor: 'white',
+              padding: '0.4rem 1rem',
+              borderRadius: '20px',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+            }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>
+                مرحباً، {currentUser.name}
+              </span>
+              <span style={{
+                fontSize: '0.75rem',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                backgroundColor: currentUser.role === 'superadmin' ? '#fef3c7' : '#eff6ff',
+                color: currentUser.role === 'superadmin' ? '#d97706' : '#2563eb',
+                fontWeight: 'bold'
+              }}>
+                {currentUser.role === 'superadmin' ? 'Super Admin' : 'مشرف'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Page Rendering based on activeTab */}
@@ -390,7 +457,7 @@ function App() {
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="ابحث بالاسم، الشقة، أو السيارة..."
+                    placeholder="ابحث بالاسم، الشقة، البارسيل أو السيارة..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{ width: '260px', paddingLeft: '2.5rem' }}
@@ -398,8 +465,6 @@ function App() {
                   <button 
                     className="btn btn-secondary"
                     style={{ padding: '0.5rem 0.75rem', borderRadius: '10px' }}
-                    onClick={() => {}} // Automatically active, button provides quick visual affordance
-                    title="بحث"
                   >
                     <Search size={18} />
                   </button>
@@ -407,7 +472,10 @@ function App() {
 
                 <button 
                   className="btn btn-primary"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => {
+                    setEditingResident(null);
+                    setIsModalOpen(true);
+                  }}
                 >
                   <Plus size={18} />
                   إضافة ساكن جديد
@@ -415,24 +483,49 @@ function App() {
               </div>
             </div>
 
-            {/* Loading Indicator */}
+            {/* Statistics Cards */}
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-icon residents">
+                  <Users size={24} />
+                </div>
+                <div className="stat-info">
+                  <h4>إجمالي السكان</h4>
+                  <p className="stat-number">{totalResidents}</p>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon cars">
+                  <Car size={24} />
+                </div>
+                <div className="stat-info">
+                  <h4>السيارات المسجلة</h4>
+                  <p className="stat-number">{totalCars}</p>
+                </div>
+              </div>
+
+              <div className="stat-card">
+                <div className="stat-icon apartments">
+                  <Home size={24} />
+                </div>
+                <div className="stat-info">
+                  <h4>الوحدات السكنية</h4>
+                  <p className="stat-number">{uniqueApartments}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Residents Grid */}
             {isLoading ? (
-              <div className="spinner"></div>
-            ) : residents.length === 0 ? (
-              <div className="empty-state">
-                <Users className="empty-state-icon" size={48} />
-                <h3>لا يوجد سكان مسجلين بعد</h3>
-                <p style={{ color: 'var(--text-muted)' }}>اضغط على زر "إضافة ساكن جديد" بالأعلى للبدء في ملء قاعدة البيانات.</p>
-                <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-                  <Plus size={18} />
-                  إضافة ساكن الآن
-                </button>
+              <div className="loading-state">
+                <p>جاري تحميل بيانات السكان...</p>
               </div>
             ) : filteredResidents.length === 0 ? (
-              <div className="empty-state" style={{ padding: '3rem 2rem' }}>
-                <Search className="empty-state-icon" size={48} />
-                <h3>لا توجد نتائج مطابقة لبحثك</h3>
-                <p style={{ color: 'var(--text-muted)' }}>تأكد من كتابة الاسم أو رقم الشقة أو رقم السيارة بشكل صحيح.</p>
+              <div className="empty-state">
+                <Users size={48} color="var(--text-muted)" />
+                <h4>لا يوجد سكان مطبقين للشرط</h4>
+                <p>لم نجد أي نتائج مطابقة للبحث الحالي أو النطاق المصرح به.</p>
                 <button className="btn btn-secondary" onClick={() => setSearchQuery('')}>
                   مسح البحث
                 </button>
@@ -442,14 +535,24 @@ function App() {
                 {filteredResidents.map((resident) => (
                   <div key={resident._id} className="resident-card">
                     <div className="resident-card-header">
-                      {/* Delete Button */}
-                      <button 
-                        className="delete-btn-abs"
-                        onClick={() => handleDeleteResident(resident._id)}
-                        title="حذف الساكن"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {/* Delete Button - Shown only if permitted */}
+                      {canUserDelete() ? (
+                        <button 
+                          className="delete-btn-abs"
+                          onClick={() => handleDeleteResident(resident._id)}
+                          title="حذف الساكن"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : (
+                        <div 
+                          className="delete-btn-abs" 
+                          style={{ opacity: 0.4, cursor: 'not-allowed', backgroundColor: '#f1f5f9', color: '#94a3b8' }}
+                          title="صلاحية الحذف غير مسموحة للمشرف"
+                        >
+                          <Lock size={14} />
+                        </div>
+                      )}
 
                       {/* Edit Button */}
                       <button 
@@ -543,7 +646,6 @@ function App() {
           </>
         )}
 
-
         {/* Cars Tab Content */}
         {activeTab === 'cars' && (
           <div style={{ padding: '2rem 0' }}>
@@ -556,7 +658,7 @@ function App() {
                 <Search size={18} color="var(--text-muted)" />
                 <input 
                   type="text" 
-                  placeholder="ابحث برقم السيارة أو الاسم..." 
+                  placeholder="ابحث برقم السيارة، الاسم، البارسيل..." 
                   style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '0.9rem' }}
                   value={carSearchQuery}
                   onChange={(e) => setCarSearchQuery(e.target.value)}
@@ -575,7 +677,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {residents.filter(r => r.carNumber).filter(r => {
+                  {displayResidents.filter(r => r.carNumber).filter(r => {
                     const q = carSearchQuery.toLowerCase().trim();
                     if (!q) return true;
                     return (
@@ -632,7 +734,7 @@ function App() {
                       </td>
                     </tr>
                   ))}
-                  {residents.filter(r => r.carNumber).filter(r => {
+                  {displayResidents.filter(r => r.carNumber).filter(r => {
                     const q = carSearchQuery.toLowerCase().trim();
                     if (!q) return true;
                     return (
@@ -661,16 +763,18 @@ function App() {
                 <p style={{ color: 'var(--text-muted)' }}>إدارة وتقسيم الكومباوند إلى مناطق (بارسيل)</p>
               </div>
               
-              <button 
-                className="btn btn-primary"
-                onClick={() => {
-                  setNewParcelName('');
-                  setIsParcelModalOpen(true);
-                }}
-              >
-                <Plus size={18} />
-                إضافة بارسيل جديد
-              </button>
+              {currentUser?.role === 'superadmin' && (
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setNewParcelName('');
+                    setIsParcelModalOpen(true);
+                  }}
+                >
+                  <Plus size={18} />
+                  إضافة بارسيل جديد
+                </button>
+              )}
             </div>
 
             {selectedParcel ? (
@@ -702,7 +806,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {residents.filter(r => r.parcel === selectedParcel.name).map((resident) => (
+                      {displayResidents.filter(r => r.parcel === selectedParcel.name).map((resident) => (
                         <tr key={resident._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '1.2rem 1.5rem', fontWeight: '700' }}>{resident.name}</td>
                           <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{resident.apartmentNumber}</td>
@@ -710,7 +814,7 @@ function App() {
                           <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{resident.children?.join(', ') || '-'}</td>
                         </tr>
                       ))}
-                      {residents.filter(r => r.parcel === selectedParcel.name).length === 0 && (
+                      {displayResidents.filter(r => r.parcel === selectedParcel.name).length === 0 && (
                         <tr>
                           <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>لا يوجد سكان في هذا البارسيل حالياً</td>
                         </tr>
@@ -721,7 +825,7 @@ function App() {
               </div>
             ) : (
               <div className="residents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
-                {parcels.map((parcel) => (
+                {displayParcels.map((parcel) => (
                   <div 
                     key={parcel._id} 
                     className="stat-card" 
@@ -735,40 +839,51 @@ function App() {
                         </div>
                         <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{parcel.name}</h3>
                       </div>
-                      <button
-                        onClick={(e) => handleDeleteParcel(parcel, e)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--danger-color)',
-                          cursor: 'pointer',
-                          padding: '6px',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        title="حذف البارسيل"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {currentUser?.role === 'superadmin' && (
+                        <button
+                          onClick={(e) => handleDeleteParcel(parcel, e)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--danger-color)',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          title="حذف البارسيل"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
-                      عدد السكان: {residents.filter(r => r.parcel === parcel.name).length}
+                      عدد السكان: {displayResidents.filter(r => r.parcel === parcel.name).length}
                     </p>
                   </div>
                 ))}
-                {parcels.length === 0 && (
+                {displayParcels.length === 0 && (
                   <div className="empty-state">
-                    <p>لا توجد مناطق بارسيل مضافة حتى الآن</p>
+                    <p>لا توجد مناطق بارسيل مضافة أو مصرح بها حتى الآن</p>
                   </div>
                 )}
               </div>
             )}
           </div>
+        )}
+
+        {/* Users / Admins Management Tab Content (Super Admin Only) */}
+        {activeTab === 'users' && currentUser?.role === 'superadmin' && (
+          <UserManagement 
+            API_BASE_URL={API_BASE_URL} 
+            parcels={parcels} 
+            showToast={showToast} 
+          />
         )}
       </main>
 
@@ -782,9 +897,10 @@ function App() {
           onSave={handleSaveResident}
           isSaving={isSaving}
           residentToEdit={editingResident}
-          parcelsList={parcels}
+          parcelsList={displayParcels}
         />
       )}
+
       {/* Add Parcel Modal */}
       {isParcelModalOpen && (
         <div className="modal-overlay" onClick={() => setIsParcelModalOpen(false)}>
@@ -827,7 +943,7 @@ function App() {
         </div>
       )}
 
-      {/* ===== Car Photo Lightbox Modal ===== */}
+      {/* Car Photo Lightbox Modal */}
       {viewCarPhoto && (
         <div
           onClick={() => setViewCarPhoto(null)}
@@ -844,7 +960,6 @@ function App() {
             animation: 'fadeIn 0.2s ease'
           }}
         >
-          {/* Close button */}
           <button
             onClick={() => setViewCarPhoto(null)}
             style={{
@@ -872,7 +987,6 @@ function App() {
             ✕
           </button>
 
-          {/* Image */}
           <img
             src={viewCarPhoto}
             alt="صورة السيارة المعتمدة"
@@ -887,7 +1001,6 @@ function App() {
             }}
           />
 
-          {/* Label */}
           <div style={{
             position: 'absolute',
             bottom: '1.5rem',

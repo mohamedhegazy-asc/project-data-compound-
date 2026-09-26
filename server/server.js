@@ -19,10 +19,33 @@ const fs = require('fs');
 
 const residentRoutes = require('./routes/residentRoutes');
 const parcelRoutes = require('./routes/parcelRoutes');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const User = require('./models/User');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mivida';
+
+// Auto-seed Super Admin (01015112428)
+async function seedSuperAdmin() {
+  try {
+    const existing = await User.findOne({ phone: '01015112428' });
+    if (!existing) {
+      await User.create({
+        name: 'السوبر أدمن الرئيسي',
+        phone: '01015112428',
+        password: '01015112428',
+        role: 'superadmin',
+        allowedParcels: ['*'],
+        canDelete: true
+      });
+      console.log('✅ تم إنشاء حساب السوبر أدمن الرئيسي (01015112428) بنجاح!');
+    }
+  } catch (err) {
+    console.error('Super Admin seed error:', err.message);
+  }
+}
 
 // Enable CORS - allow all origins for Vercel deployment
 app.use(cors({
@@ -34,8 +57,6 @@ app.use(cors({
 // Parse JSON and form data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Note: File uploads are now handled by Cloudinary (see config/cloudinary.js)
 
 // Database connection helper with connection promise caching for Serverless environments (Vercel)
 let connectionPromise = null;
@@ -49,8 +70,9 @@ async function connectDB() {
       serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
     })
-      .then(conn => {
+      .then(async (conn) => {
         console.log('تم الاتصال بقاعدة بيانات MongoDB بنجاح.');
+        await seedSuperAdmin();
         return conn;
       })
       .catch(err => {
@@ -75,8 +97,11 @@ app.use(async (req, res, next) => {
 });
 
 // API Routes (supports both /api/path and /path for Vercel rewrites)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/users', '/users'], userRoutes);
 app.use(['/api/residents', '/residents'], residentRoutes);
 app.use(['/api/parcels', '/parcels'], parcelRoutes);
+
 
 // Health check endpoint
 app.get(['/api/health', '/health'], (req, res) => {
