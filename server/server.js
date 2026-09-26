@@ -87,13 +87,18 @@ app.get(['/api/health', '/health'], (req, res) => {
   });
 });
 
-// Serve frontend in local production build (when not on Vercel)
-if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+// Serve frontend in production build
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.resolve(clientDistPath, 'index.html'));
   });
 }
+
 
 // Global error handling middleware for JSON error responses
 app.use((err, req, res, next) => {
