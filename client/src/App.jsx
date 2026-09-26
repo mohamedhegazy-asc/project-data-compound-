@@ -377,6 +377,8 @@ function App() {
         setActiveTab={setActiveTab} 
         isOpen={isSidebarOpen} 
         setIsOpen={setIsSidebarOpen}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
@@ -396,26 +398,6 @@ function App() {
 
       {/* Main Content Area */}
       <main className="main-content">
-        
-        {/* Top Desktop Toggle Bar */}
-        <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <button 
-            className="btn btn-secondary" 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            style={{
-              padding: '0.5rem',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px'
-            }}
-            title={isSidebarCollapsed ? "إظهار القائمة" : "إخفاء القائمة"}
-          >
-            <Menu size={20} />
-          </button>
-        </div>
 
         {/* Dynamic Page Rendering based on activeTab */}
         {activeTab === 'residents' && (

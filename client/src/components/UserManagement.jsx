@@ -218,11 +218,13 @@ function UserManagement({ API_BASE_URL, parcels, showToast }) {
       {/* Page Header */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        justify: 'space-between',
         alignItems: 'center',
         marginBottom: '2rem',
         backgroundColor: '#ffffff',
-        padding: '1.5rem 2rem',
+        padding: '1.25rem 1.75rem',
         borderRadius: '20px',
         border: '1px solid #e1e3e8',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)'

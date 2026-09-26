@@ -1,7 +1,7 @@
 import React from 'react';
-import { Users, Car, Map, LogOut, X, ShieldCheck, UserCheck } from 'lucide-react';
+import { Users, Car, Map, LogOut, X, ShieldCheck, UserCheck, ChevronRight, ChevronLeft } from 'lucide-react';
 
-function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLogout }) {
+function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isCollapsed, setIsCollapsed, currentUser, onLogout }) {
   const menuItems = [
     { id: 'residents', label: 'إدارة السكان', icon: Users },
     { id: 'cars', label: 'إدارة السيارات', icon: Car },
@@ -17,24 +17,17 @@ function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLo
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
         <div 
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            zIndex: 99,
-          }} 
+          className="sidebar-backdrop"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Sidebar Header */}
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <div className="sidebar-logo-box">
-              MV
-            </div>
-            <span className="sidebar-logo-text">ميفيدا Hegazy</span>
+            <div className="sidebar-logo-box">MV</div>
+            {!isCollapsed && <span className="sidebar-logo-text">ميفيدا Hegazy</span>}
           </div>
           {/* Close button - visible on mobile only */}
           <button className="sidebar-toggle-btn sidebar-close-btn" onClick={() => setIsOpen(false)}>
@@ -44,49 +37,22 @@ function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLo
 
         {/* User Badge Info */}
         {currentUser && (
-          <div style={{
-            margin: '0.5rem 1rem 1rem 1rem',
-            padding: '0.75rem 1rem',
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.12)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem'
-          }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
+          <div className={`sidebar-user-badge ${isCollapsed ? 'collapsed' : ''}`}>
+            <div className="sidebar-user-avatar" style={{
               backgroundColor: currentUser.role === 'superadmin' ? '#f59e0b' : '#3b82f6',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '0.9rem'
             }}>
               {currentUser.role === 'superadmin' ? <ShieldCheck size={20} /> : <UserCheck size={20} />}
             </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{
-                color: 'white',
-                fontWeight: '700',
-                fontSize: '0.85rem',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {currentUser.name}
+            {!isCollapsed && (
+              <div className="sidebar-user-info">
+                <div className="sidebar-user-name">{currentUser.name}</div>
+                <div className="sidebar-user-role" style={{
+                  color: currentUser.role === 'superadmin' ? '#fbbf24' : '#93c5fd',
+                }}>
+                  {currentUser.role === 'superadmin' ? 'سوبر أدمن' : 'مشرف قطاع'}
+                </div>
               </div>
-              <div style={{
-                color: currentUser.role === 'superadmin' ? '#fbbf24' : '#93c5fd',
-                fontSize: '0.75rem',
-                fontWeight: '600'
-              }}>
-                {currentUser.role === 'superadmin' ? 'سوبر أدمن' : 'مشرف قطاع'}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -102,9 +68,10 @@ function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLo
                     setActiveTab(item.id);
                     setIsOpen(false);
                   }}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <Icon className="sidebar-item-icon" />
-                  <span>{item.label}</span>
+                  {!isCollapsed && <span>{item.label}</span>}
                 </a>
               </li>
             );
@@ -113,11 +80,20 @@ function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLo
 
         {/* Sidebar Footer */}
         <div className="sidebar-footer">
-          <a className="sidebar-logout" onClick={onLogout}>
+          <a className="sidebar-logout" onClick={onLogout} title={isCollapsed ? 'تسجيل الخروج' : undefined}>
             <LogOut size={20} />
-            <span>تسجيل الخروج</span>
+            {!isCollapsed && <span>تسجيل الخروج</span>}
           </a>
         </div>
+
+        {/* Desktop Collapse Toggle - fixed to the edge of the sidebar */}
+        <button
+          className="sidebar-collapse-btn desktop-only"
+          onClick={() => setIsCollapsed(prev => !prev)}
+          title={isCollapsed ? 'توسيع القائمة' : 'طي القائمة'}
+        >
+          {isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+        </button>
       </aside>
     </>
   );
