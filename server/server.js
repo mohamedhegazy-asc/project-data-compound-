@@ -87,9 +87,9 @@ app.get(['/api/health', '/health'], (req, res) => {
   });
 });
 
-// Serve frontend in production build
+// Serve frontend in local standalone production build
 const clientDistPath = path.join(__dirname, '../client/dist');
-if (fs.existsSync(clientDistPath)) {
+if (!process.env.VERCEL && fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
@@ -98,6 +98,7 @@ if (fs.existsSync(clientDistPath)) {
     res.sendFile(path.resolve(clientDistPath, 'index.html'));
   });
 }
+
 
 
 // Global error handling middleware for JSON error responses
