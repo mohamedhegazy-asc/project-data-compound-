@@ -569,7 +569,7 @@ function App() {
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
                     <th style={{ padding: '1.2rem 1.5rem', fontSize: '0.85rem', fontWeight: '800' }}>صاحب المركبة</th>
-                    <th style={{ padding: '1.2rem 1.5rem', fontSize: '0.85rem', fontWeight: '800' }}>رقم الشقة</th>
+                    <th style={{ padding: '1.2rem 1.5rem', fontSize: '0.85rem', fontWeight: '800' }}>السكن والبارسيل</th>
                     <th style={{ padding: '1.2rem 1.5rem', fontSize: '0.85rem', fontWeight: '800' }}>لوحة السيارة</th>
                     <th style={{ padding: '1.2rem 1.5rem', fontSize: '0.85rem', fontWeight: '800' }}>معاينة الصورة</th>
                   </tr>
@@ -580,12 +580,38 @@ function App() {
                     if (!q) return true;
                     return (
                       r.name.toLowerCase().includes(q) ||
-                      r.carNumber.toLowerCase().includes(q)
+                      r.carNumber.toLowerCase().includes(q) ||
+                      (r.apartmentNumber && r.apartmentNumber.toLowerCase().includes(q)) ||
+                      (r.parcel && r.parcel.toLowerCase().includes(q))
                     );
                   }).map((resident) => (
                     <tr key={resident._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '1.2rem 1.5rem', fontWeight: '700' }}>{resident.name}</td>
-                      <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{resident.apartmentNumber}</td>
+                      <td style={{ padding: '1.2rem 1.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                          <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>
+                            {resident.apartmentNumber}
+                          </span>
+                          {resident.parcel ? (
+                            <span style={{
+                              fontSize: '0.78rem',
+                              color: '#2563eb',
+                              backgroundColor: '#eff6ff',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontWeight: '600',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              border: '1px solid #bfdbfe'
+                            }}>
+                              <MapPin size={12} /> {resident.parcel}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>بدون بارسيل</span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: '1.2rem 1.5rem' }}>
                         <span style={{ backgroundColor: '#f1f5f9', padding: '0.4rem 0.8rem', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #cbd5e1' }}>
                           {resident.carNumber}
@@ -596,7 +622,9 @@ function App() {
                           <img 
                             src={resident.carPhoto} 
                             alt="Car" 
-                            style={{ width: '50px', height: '35px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                            style={{ width: '50px', height: '35px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                            onClick={() => setViewCarPhoto(resident.carPhoto)}
+                            title="اضغط لمعاينة الصورة"
                           />
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>لا توجد صورة</span>
@@ -607,7 +635,12 @@ function App() {
                   {residents.filter(r => r.carNumber).filter(r => {
                     const q = carSearchQuery.toLowerCase().trim();
                     if (!q) return true;
-                    return r.name.toLowerCase().includes(q) || r.carNumber.toLowerCase().includes(q);
+                    return (
+                      r.name.toLowerCase().includes(q) ||
+                      r.carNumber.toLowerCase().includes(q) ||
+                      (r.apartmentNumber && r.apartmentNumber.toLowerCase().includes(q)) ||
+                      (r.parcel && r.parcel.toLowerCase().includes(q))
+                    );
                   }).length === 0 && (
                     <tr>
                       <td colSpan="4" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>لا توجد سيارات مسجلة أو مطابقة للبحث</td>
