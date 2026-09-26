@@ -394,8 +394,8 @@ function App() {
       {/* Main Content Area */}
       <main className="main-content">
         
-        {/* Top Desktop Toggle & Profile Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        {/* Top Desktop Toggle Bar */}
+        <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', marginBottom: '1.5rem' }}>
           <button 
             className="btn btn-secondary" 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -412,33 +412,6 @@ function App() {
           >
             <Menu size={20} />
           </button>
-
-          {currentUser && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              backgroundColor: 'white',
-              padding: '0.4rem 1rem',
-              borderRadius: '20px',
-              border: '1px solid var(--border-color)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-            }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>
-                مرحباً، {currentUser.name}
-              </span>
-              <span style={{
-                fontSize: '0.75rem',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                backgroundColor: currentUser.role === 'superadmin' ? '#fef3c7' : '#eff6ff',
-                color: currentUser.role === 'superadmin' ? '#d97706' : '#2563eb',
-                fontWeight: 'bold'
-              }}>
-                {currentUser.role === 'superadmin' ? 'Super Admin' : 'مشرف'}
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Dynamic Page Rendering based on activeTab */}
@@ -480,39 +453,6 @@ function App() {
                   <Plus size={18} />
                   إضافة ساكن جديد
                 </button>
-              </div>
-            </div>
-
-            {/* Statistics Cards */}
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon residents">
-                  <Users size={24} />
-                </div>
-                <div className="stat-info">
-                  <h4>إجمالي السكان</h4>
-                  <p className="stat-number">{totalResidents}</p>
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon cars">
-                  <Car size={24} />
-                </div>
-                <div className="stat-info">
-                  <h4>السيارات المسجلة</h4>
-                  <p className="stat-number">{totalCars}</p>
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon apartments">
-                  <Home size={24} />
-                </div>
-                <div className="stat-info">
-                  <h4>الوحدات السكنية</h4>
-                  <p className="stat-number">{uniqueApartments}</p>
-                </div>
               </div>
             </div>
 

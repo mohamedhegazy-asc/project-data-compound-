@@ -187,30 +187,6 @@ function LoginModal({ onLogin, API_BASE_URL, showToast }) {
             {isSubmitting ? 'جاري التحقق...' : 'تسجيل الدخول'}
           </button>
         </form>
-
-        {/* Quick Demo Button */}
-        <div style={{
-          marginTop: '1.5rem',
-          paddingTop: '1.25rem',
-          borderTop: '1px solid #f1f5f9',
-          textAlign: 'center'
-        }}>
-          <button
-            type="button"
-            onClick={fillSuperAdmin}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#2563eb',
-              fontSize: '0.82rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            🔑 دخول تلقائي كـ Super Admin الرئيسي (01015112428)
-          </button>
-        </div>
       </div>
     </div>
   );
