@@ -1,6 +1,16 @@
 const path = require('path');
+const dns = require('dns');
+
+// Configure Google & Cloudflare DNS for SRV resolution fallback
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore in environments where setServers is restricted
+}
+
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config();
+
 
 const express = require('express');
 const mongoose = require('mongoose');

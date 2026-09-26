@@ -13,7 +13,7 @@
     }
   ],
   "env": {
-    "MONGODB_URI": "mongodb+srv://hegazymivida:hegazy2003@cluster0.oqow7gi.mongodb.net/mivida?retryWrites=true&w=majority&appName=Cluster0",
+    "MONGODB_URI": "mongodb+srv://quiz:hegazy2003@cluster0.hv6iycd.mongodb.net/mivida?retryWrites=true&w=majority&appName=Cluster0",
     "CLOUDINARY_CLOUD_NAME": "rd0u96zt",
     "CLOUDINARY_API_KEY": "416226374972521",
     "CLOUDINARY_API_SECRET": "jDC8UAKFF8unuGdTJ2ioxY-UFh8",
