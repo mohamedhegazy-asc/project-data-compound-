@@ -1,30 +1,67 @@
 import React, { useState } from 'react';
-import { Phone, Lock, LogIn, Shield, AlertCircle } from 'lucide-react';
 
 function LoginModal({ onLogin, API_BASE_URL, showToast }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [serverError, setServerError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [touched, setTouched] = useState({ phone: false, password: false });
+
+  const validatePhone = (val) => {
+    if (!val || !val.trim()) return 'رقم الهاتف مطلوب';
+    const clean = val.trim();
+    if (!/^01[0-9]{9}$/.test(clean)) {
+      return 'برجاء إدخال رقم هاتف مصري صحيح يتكون من 11 رقم (مثال: 01012345678)';
+    }
+    return '';
+  };
+
+  const validatePassword = (val) => {
+    if (!val || !val.trim()) return 'كلمة السر مطلوبة';
+    return '';
+  };
 
   const handlePhoneChange = (e) => {
     const val = e.target.value;
     setPhone(val);
-    // If password hasn't been modified separately or matches old phone, auto-sync
     if (!password || password === phone) {
       setPassword(val);
     }
+    if (touched.phone) {
+      setPhoneError(validatePhone(val));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const val = e.target.value;
+    setPassword(val);
+    if (touched.password) {
+      setPasswordError(validatePassword(val));
+    }
+  };
+
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    if (field === 'phone') setPhoneError(validatePhone(phone));
+    if (field === 'password') setPasswordError(validatePassword(password));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phone.trim()) {
-      setErrorMsg('برجاء إدخال رقم الهاتف');
-      return;
-    }
+    setTouched({ phone: true, password: true });
+
+    const pErr = validatePhone(phone);
+    const passErr = validatePassword(password);
+
+    setPhoneError(pErr);
+    setPasswordError(passErr);
+
+    if (pErr || passErr) return;
 
     setIsSubmitting(true);
-    setErrorMsg('');
+    setServerError('');
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -39,152 +76,190 @@ function LoginModal({ onLogin, API_BASE_URL, showToast }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast(`مرحباً بك يا ${data.user.name}`);
+        if (showToast) showToast(`تم تسجيل الدخول بنجاح (${data.user.name})`);
         onLogin(data.user);
       } else {
-        setErrorMsg(data.message || 'فشل تسجيل الدخول');
+        setServerError(data.message || 'رقم الهاتف أو كلمة السر غير صحيحة');
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg('خطأ في الاتصال بالسيرفر');
+      setServerError('تعذر الاتصال بالسيرفر، برجاء المحاولة لاحقاً');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const fillSuperAdmin = () => {
-    setPhone('01015112428');
-    setPassword('01015112428');
-  };
-
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.82)',
-      backdropFilter: 'blur(8px)',
+      minHeight: '100vh',
+      width: '100%',
+      backgroundColor: '#f8fafd',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 99999,
-      padding: '1rem'
+      padding: '2rem 1rem',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      direction: 'rtl'
     }}>
       <div style={{
         backgroundColor: '#ffffff',
-        borderRadius: '24px',
+        borderRadius: '28px',
         width: '100%',
-        maxWidth: '440px',
-        padding: '2.5rem',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        border: '1px solid #e2e8f0',
-        direction: 'rtl'
+        maxWidth: '460px',
+        padding: '3rem 2.5rem',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+        border: '1px solid #e1e3e8'
       }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        {/* Google Material Header */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '20px',
-            backgroundColor: '#1e3a8a',
-            color: 'white',
-            display: 'flex',
+            width: '48px',
+            height: '48px',
+            borderRadius: '16px',
+            backgroundColor: '#0b57d0',
+            color: '#ffffff',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 1rem auto',
-            boxShadow: '0 10px 20px rgba(30, 58, 138, 0.3)'
+            fontWeight: '700',
+            fontSize: '1.25rem',
+            marginBottom: '1rem',
+            letterSpacing: '0.5px'
           }}>
-            <Shield size={32} />
+            MV
           </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: '0 0 0.5rem 0' }}>
-            تسجيل الدخول للنظام
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '0.88rem', margin: 0 }}>
-            نظام إدارة السكان والكومباوند - ميفيدا Hegazy
+          <h1 style={{
+            fontSize: '1.6rem',
+            fontWeight: '600',
+            color: '#1f1f1f',
+            margin: '0 0 0.5rem 0',
+            letterSpacing: '-0.3px'
+          }}>
+            تسجيل الدخول
+          </h1>
+          <p style={{ color: '#444746', fontSize: '0.9rem', margin: 0 }}>
+            نظام إدارة ميفيدا Hegazy
           </p>
         </div>
 
-        {/* Error Alert */}
-        {errorMsg && (
+        {/* Server Level Error Banner */}
+        {serverError && (
           <div style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#dc2626',
-            padding: '0.75rem 1rem',
+            backgroundColor: '#fdeded',
+            color: '#b3261e',
+            border: '1px solid #f9dedc',
             borderRadius: '12px',
+            padding: '0.85rem 1rem',
             fontSize: '0.85rem',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
+            marginBottom: '1.5rem',
+            fontWeight: '500',
+            lineHeight: '1.4'
           }}>
-            <AlertCircle size={18} />
-            <span>{errorMsg}</span>
+            {serverError}
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '0.5rem' }}>
+        <form onSubmit={handleSubmit} noValidate>
+          {/* Phone Field */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.825rem',
+              fontWeight: '600',
+              color: phoneError ? '#b3261e' : '#444746',
+              marginBottom: '0.4rem'
+            }}>
               رقم الهاتف
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="أدخل رقم الهاتف (مثال: 01015112428)"
-                value={phone}
-                onChange={handlePhoneChange}
-                required
-                style={{
-                  width: '100%',
-                  paddingLeft: '2.5rem',
-                  fontSize: '0.95rem',
-                  fontWeight: '600'
-                }}
-              />
-              <Phone size={18} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            </div>
+            <input
+              type="tel"
+              value={phone}
+              onChange={handlePhoneChange}
+              onBlur={() => handleBlur('phone')}
+              placeholder="01012345678"
+              style={{
+                width: '100%',
+                padding: '0.85rem 1rem',
+                fontSize: '0.95rem',
+                color: '#1f1f1f',
+                backgroundColor: '#ffffff',
+                border: phoneError ? '2px solid #b3261e' : '1px solid #747775',
+                borderRadius: '12px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.2s, box-shadow 0.2s'
+              }}
+              onFocus={(e) => {
+                if (!phoneError) e.target.style.borderColor = '#0b57d0';
+              }}
+            />
+            {phoneError && (
+              <span style={{ color: '#b3261e', fontSize: '0.78rem', marginTop: '0.35rem', display: 'block', fontWeight: '500' }}>
+                {phoneError}
+              </span>
+            )}
           </div>
 
-          <div style={{ marginBottom: '1.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '700', color: '#334155', marginBottom: '0.5rem' }}>
-              كلمة السر (رقم الهاتف)
+          {/* Password Field */}
+          <div style={{ marginBottom: '2rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.825rem',
+              fontWeight: '600',
+              color: passwordError ? '#b3261e' : '#444746',
+              marginBottom: '0.4rem'
+            }}>
+              كلمة السر
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="password"
-                className="form-control"
-                placeholder="أدخل كلمة السر"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  paddingLeft: '2.5rem',
-                  fontSize: '0.95rem'
-                }}
-              />
-              <Lock size={18} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={handlePasswordChange}
+              onBlur={() => handleBlur('password')}
+              placeholder="أدخل كلمة السر"
+              style={{
+                width: '100%',
+                padding: '0.85rem 1rem',
+                fontSize: '0.95rem',
+                color: '#1f1f1f',
+                backgroundColor: '#ffffff',
+                border: passwordError ? '2px solid #b3261e' : '1px solid #747775',
+                borderRadius: '12px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.2s, box-shadow 0.2s'
+              }}
+              onFocus={(e) => {
+                if (!passwordError) e.target.style.borderColor = '#0b57d0';
+              }}
+            />
+            {passwordError && (
+              <span style={{ color: '#b3261e', fontSize: '0.78rem', marginTop: '0.35rem', display: 'block', fontWeight: '500' }}>
+                {passwordError}
+              </span>
+            )}
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
-            className="btn btn-primary"
             disabled={isSubmitting}
             style={{
               width: '100%',
-              padding: '0.85rem',
-              borderRadius: '14px',
-              fontSize: '1rem',
-              fontWeight: '700',
-              justifyContent: 'center',
-              backgroundColor: '#1e3a8a'
+              padding: '0.9rem',
+              backgroundColor: isSubmitting ? '#a8c7fa' : '#0b57d0',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '100px',
+              fontSize: '0.95rem',
+              fontWeight: '600',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+              transition: 'background-color 0.2s, box-shadow 0.2s'
             }}
           >
-            <LogIn size={20} />
-            {isSubmitting ? 'جاري التحقق...' : 'تسجيل الدخول'}
+            {isSubmitting ? 'جاري التحقق...' : 'التالي'}
           </button>
         </form>
       </div>

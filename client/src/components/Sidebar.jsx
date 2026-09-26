@@ -84,7 +84,7 @@ function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, currentUser, onLo
                 fontSize: '0.75rem',
                 fontWeight: '600'
               }}>
-                {currentUser.role === 'superadmin' ? '⭐ سوبر أدمن' : '🛡️ مشرف قطاع'}
+                {currentUser.role === 'superadmin' ? 'سوبر أدمن' : 'مشرف قطاع'}
               </div>
             </div>
           </div>
