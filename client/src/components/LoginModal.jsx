@@ -76,7 +76,7 @@ function LoginModal({ onLogin, API_BASE_URL, showToast }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        if (showToast) showToast(`تم تسجيل الدخول بنجاح (${data.user.name})`);
+        if (showToast) showToast('تم تسجيل الدخول بنجاح');
         onLogin(data.user);
       } else {
         setServerError(data.message || 'رقم الهاتف أو كلمة السر غير صحيحة');
