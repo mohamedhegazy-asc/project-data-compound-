@@ -357,16 +357,19 @@ function App() {
   const totalCars = displayResidents.filter(r => r.carNumber && r.carNumber.trim() !== '').length;
   const uniqueApartments = new Set(displayResidents.map(r => r.apartmentNumber)).size;
 
+  // If not logged in, render only the clean Login Screen
+  if (!currentUser) {
+    return (
+      <LoginModal 
+        onLogin={handleLogin} 
+        API_BASE_URL={API_BASE_URL} 
+        showToast={showToast} 
+      />
+    );
+  }
+
   return (
     <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      {/* Login Modal Overlay */}
-      {!currentUser && (
-        <LoginModal 
-          onLogin={handleLogin} 
-          API_BASE_URL={API_BASE_URL} 
-          showToast={showToast} 
-        />
-      )}
 
       {/* Sidebar */}
       <Sidebar 
